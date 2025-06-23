@@ -1,82 +1,211 @@
--- Ekran üzerindeki GUI elemanları için bir ScreenGui oluştur
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "CalistiScreenGui"
-screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+-- Deneme Amaçlı Uçuş Kontrol Sistemi
+local player = game:GetService("Players").LocalPlayer
+local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
 
--- ScreenGui içine bir Frame (kutu) oluştur
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 200, 0, 100)
-mainFrame.Position = UDim2.new(0.5, -100, 0.5, -50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-mainFrame.BackgroundTransparency = 0.2
-mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-mainFrame.BorderSizePixel = 2
-mainFrame.Active = true -- Sürükleme için aktif hale getir (önceki gibi)
-mainFrame.Draggable = false -- Manuel olarak sürükleyeceğiz (önceki gibi)
-mainFrame.Parent = screenGui
+local flightGui = Instance.new("ScreenGui")
+flightGui.Name = "FlightControlGui"
+flightGui.Parent = player:WaitForChild("PlayerGui")
 
--- Frame içine bir TextLabel (yazı) oluştur
-local textLabel = Instance.new("TextLabel")
-textLabel.Size = UDim2.new(1, 0, 1, 0)
-textLabel.Text = "calisti"
-textLabel.Font = Enum.Font.SourceSansBold
-textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-textLabel.TextScaled = true
-textLabel.TextWrapped = true
-textLabel.BackgroundTransparency = 1
-textLabel.Parent = mainFrame
+local flightButton = Instance.new("TextButton")
+flightButton.Size = UDim2.new(0, 150, 0, 50)
+flightButton.Position = UDim2.new(0.5, -75, 0.8, 0) -- Ekranın alt ortası
+flightButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+flightButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flightButton.Text = "Uçuşu Başlat"
+flightButton.Font = Enum.Font.SourceSansBold
+flightButton.TextScaled = true
+flightButton.BorderSizePixel = 0
+flightButton.Parent = flightGui
 
--- Çarpı işareti için bir TextButton oluştur
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -30, 0, 0)
-closeButton.Text = "X"
-closeButton.Font = Enum.Font.SourceSansBold
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-closeButton.BackgroundTransparency = 0
-closeButton.BorderSizePixel = 0
-closeButton.Parent = mainFrame
+local isFlying = false
+local character = nil
+local humanoid = nil
+local humanoidRootPart = nil
+local originalGravity = 0 -- Varsayılan 0, çünkü Humanoid yüklendiğinde güncelleyeceğiz
+local moveSpeed = 30 -- Uçuş hızı (istediğiniz gibi değiştirebilirsiniz)
+local flySpeedMultiplier = 2 -- Shift basılıyken uçuş hız çarpanı
 
--- Kapatma düğmesine tıklandığında Frame'i gizle
-closeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-end)
+local currentMoveVector = Vector3.new(0, 0, 0) -- Hareket yönü
+local connections = {} -- Bağlantıları saklamak için tablo
 
--- Sürükleme özelliği için değişkenler
-local isDragging = false
-local dragStartPos = Vector2.new(0, 0)
-local initialFramePos = UDim2.new(0, 0, 0, 0)
-local UserInputService = game:GetService("UserInputService") -- UserInputService'i kısaltma olarak tanımla
+-- Karakter ve Humanoid referanslarını güvenli bir şekilde al
+local function setupCharacter()
+    if player.Character then
+        character = player.Character
+        humanoid = character:WaitForChild("Humanoid")
+        humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        originalGravity = humanoid.Gravity -- Orijinal yerçekimini al
+    else
+        player.CharacterAdded:Wait() -- Karakter henüz yoksa bekle
+        character = player.Character
+        humanoid = character:WaitForChild("Humanoid")
+        humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        originalGravity = humanoid.Gravity
+    end
+end
 
--- Frame'e fare veya dokunma basıldığında sürüklemeyi başlat
-mainFrame.InputBegan:Connect(function(input, gameProcessedEvent)
-    -- Sadece sol fare tuşu veya parmak dokunuşu ise
-    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not gameProcessedEvent then
-        isDragging = true
-        dragStartPos = input.Position -- Fare veya dokunma pozisyonu
-        initialFramePos = mainFrame.Position -- Çerçevenin o anki pozisyonu
+-- Tuş girdilerini dinle
+local function onInputBegan(input, gameProcessedEvent)
+    if gameProcessedEvent then return end -- Oyun zaten işlediyse dur
+
+    if isFlying then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            local key = input.KeyCode
+            if key == Enum.KeyCode.W then
+                currentMoveVector = currentMoveVector + Vector3.new(0, 0, -1)
+            elseif key == Enum.KeyCode.S then
+                currentMoveVector = currentMoveVector + Vector3.new(0, 0, 1)
+            elseif key == Enum.KeyCode.A then
+                currentMoveVector = currentMoveVector + Vector3.new(-1, 0, 0)
+            elseif key == Enum.KeyCode.D then
+                currentMoveVector = currentMoveVector + Vector3.new(1, 0, 0)
+            elseif key == Enum.KeyCode.Space then
+                currentMoveVector = currentMoveVector + Vector3.new(0, 1, 0)
+            elseif key == Enum.KeyCode.LeftShift or key == Enum.KeyCode.RightShift then
+                currentMoveVector = currentMoveVector + Vector3.new(0, -1, 0)
+            end
+        end
+        -- Mobil dokunmatik hareket de eklenebilir, ancak varsayılan Roblox joystiği bunu halleder.
+        -- Buraya custom mobil UI hareket kontrolü eklemek daha karmaşık olur.
+    end
+end
+
+local function onInputEnded(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+
+    if isFlying then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            local key = input.KeyCode
+            if key == Enum.KeyCode.W then
+                currentMoveVector = currentMoveVector - Vector3.new(0, 0, -1)
+            elseif key == Enum.KeyCode.S then
+                currentMoveVector = currentMoveVector - Vector3.new(0, 0, 1)
+            elseif key == Enum.KeyCode.A then
+                currentMoveVector = currentMoveVector - Vector3.new(-1, 0, 0)
+            elseif key == Enum.KeyCode.D then
+                currentMoveVector = currentMoveVector - Vector3.new(1, 0, 0)
+            elseif key == Enum.KeyCode.Space then
+                currentMoveVector = currentMoveVector - Vector3.new(0, 1, 0)
+            elseif key == Enum.KeyCode.LeftShift or key == Enum.KeyCode.RightShift then
+                currentMoveVector = currentMoveVector - Vector3.new(0, -1, 0)
+            end
+        end
+    end
+end
+
+-- Karakteri hareket ettiren fonksiyon (her karede çalışır)
+local function onRenderStepped(deltaTime)
+    if isFlying and humanoidRootPart and humanoid then
+        local currentSpeed = moveSpeed
+        if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) or userInputService:IsKeyDown(Enum.KeyCode.RightShift) then
+            currentSpeed = moveSpeed * flySpeedMultiplier
+        end
+
+        local desiredVelocity = currentMoveVector.Unit * currentSpeed
+        if currentMoveVector.Magnitude > 0 then
+            -- Karakterin bakış yönüne göre hareket ettir
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame + (humanoidRootPart.CFrame.LookVector * desiredVelocity.Z * deltaTime)
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame + (humanoidRootPart.CFrame.RightVector * desiredVelocity.X * deltaTime)
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame + (Vector3.new(0,1,0) * desiredVelocity.Y * deltaTime) -- Y ekseni (yukarı/aşağı) her zaman dünya yukarıdır.
+
+            humanoid.WalkSpeed = 0 -- Yürüme hızını sıfırla ki default kontroller karışmasın
+            humanoid.JumpPower = 0 -- Zıplamayı kapat
+        else
+            -- Hareket yoksa karakteri olduğu yerde tut
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+            humanoidRootPart.Velocity = Vector3.new(0,0,0) -- Dururken titreşimi engelle
+            humanoidRootPart.RotVelocity = Vector3.new(0,0,0)
+        end
+    end
+end
+
+local function enableFlight()
+    if not character or not humanoid or not humanoidRootPart then return end
+
+    isFlying = true
+    humanoid.Gravity = 0 -- Yerçekimini sıfırla
+    humanoid.PlatformStand = true -- Karakteri havada sabit tut
+
+    -- Varsayılan kontrolleri kapat
+    humanoid.AutoRotate = false -- Otomatik dönüşü kapat
+    humanoid.WalkSpeed = 0
+    humanoid.JumpPower = 0
+    character.HumanoidRootPart.CanCollide = false -- Başka parçalarla çarpışmayı kapat
+    -- Opsiyonel: Kamerayı serbest moda geçirebilirsiniz
+    -- game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, false) -- Tüm varsayılan GUI'leri kapat
+
+    flightButton.Text = "Uçuşu Durdur"
+
+    -- Uçuş hareket dinleyicilerini bağla
+    connections.InputBegan = userInputService.InputBegan:Connect(onInputBegan)
+    connections.InputEnded = userInputService.InputEnded:Connect(onInputEnded)
+    connections.RenderStepped = runService.RenderStepped:Connect(onRenderStepped)
+    print("Uçuş başlatıldı!")
+end
+
+local function disableFlight()
+    if not character or not humanoid or not humanoidRootPart then return end
+
+    isFlying = false
+    humanoid.Gravity = originalGravity -- Orijinal yerçekimini geri yükle
+    humanoid.PlatformStand = false -- Platform standı kapat
+    humanoid.AutoRotate = true -- Otomatik dönüşü aç
+    humanoid.WalkSpeed = 16 -- Varsayılan yürüme hızı (oyununuza göre değişebilir)
+    humanoid.JumpPower = 50 -- Varsayılan zıplama gücü (oyununuza göre değişebilir)
+    character.HumanoidRootPart.CanCollide = true -- Çarpışmayı tekrar aç
+    -- Opsiyonel: Kamerayı eski haline getir
+    -- game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+
+    -- Bağlantıları kes
+    for _, connection in pairs(connections) do
+        connection:Disconnect()
+    end
+    connections = {} -- Tabloyu temizle
+
+    currentMoveVector = Vector3.new(0,0,0) -- Hareket vektörünü sıfırla
+    humanoidRootPart.Velocity = Vector3.new(0,0,0) -- Hızı sıfırla
+    humanoidRootPart.RotVelocity = Vector3.new(0,0,0) -- Dönme hızını sıfırla
+
+    flightButton.Text = "Uçuşu Başlat"
+    print("Uçuş durduruldu.")
+end
+
+-- Butona tıklama olayı
+flightButton.MouseButton1Click:Connect(function()
+    if not character or not humanoid or not humanoidRootPart then
+        setupCharacter() -- Karakter referansları yoksa tekrar kur
+        if not character or not humanoid or not humanoidRootPart then
+            warn("Karakter referansları hala alınamıyor.")
+            return
+        end
+    end
+
+    if isFlying then
+        disableFlight()
+    else
+        enableFlight()
     end
 end)
 
--- Fare veya parmak hareket ettiğinde Frame'i hareket ettir
-UserInputService.InputChanged:Connect(function(input, gameProcessedEvent)
-    -- Sadece fare hareketi veya parmak dokunuşu hareketi ve sürükleme aktifse
-    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and isDragging and not gameProcessedEvent then
-        local delta = input.Position - dragStartPos -- Başlangıçtan ne kadar kaydığını hesapla
-        local newX = initialFramePos.X.Offset + delta.X
-        local newY = initialFramePos.Y.Offset + delta.Y
-        mainFrame.Position = UDim2.new(0, newX, 0, newY)
+-- Karakter yeniden yüklendiğinde (ölünce vb.) uçuş durumunu sıfırla
+player.CharacterAdded:Connect(function(newChar)
+    if isFlying then -- Eğer uçuş modundayken öldüyse, uçuşu durdur
+        disableFlight()
     end
+    -- Yeni karakteri ayarla ve Humanoid'i tekrar bağla
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+    originalGravity = humanoid.Gravity -- Yeni karakter için orijinal yerçekimini güncelle
+
+    -- Humanoid referansları güncellendiğinde, tekrar uçuşa geçebilmek için butonu hazırla
+    flightButton.Text = "Uçuşu Başlat"
+    isFlying = false
 end)
 
--- Fare veya parmak bırakıldığında sürüklemeyi durdur
-UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
-    -- Sadece sol fare tuşu veya parmak dokunuşu bırakıldıysa
-    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-        isDragging = false
-    end
-end)
+-- İlk karakter kurulumunu yap
+setupCharacter()
 
-print("2D 'calisti' kutusu ekranda oluşturuldu ve hem fare hem de dokunmatik cihazlar için sürüklenebilir hale getirildi, ayrıca bir kapatma düğmesi eklendi!")
-
+print("Uçuş kontrol sistemi yüklendi.")
