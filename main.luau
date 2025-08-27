@@ -1,7 +1,8 @@
--- LocalScript (StarterPlayerScripts içine koyabilirsin)
+-- LocalScript (StarterPlayerScripts içine koy)
 local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local hum = char:WaitForChild("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
 local uis = game:GetService("UserInputService")
 local runService = game:GetService("RunService")
 
@@ -11,10 +12,10 @@ screenGui.Name = "CustomMenuGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Menü açma butonu
+-- Menü butonu
 local menuButton = Instance.new("TextButton")
 menuButton.Size = UDim2.new(0,200,0,50)
-menuButton.Position = UDim2.new(0.5, -100, 0, 50) -- Orta üst
+menuButton.Position = UDim2.new(0.5, -100, 0, 50)
 menuButton.Text = "MENU"
 menuButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
 menuButton.TextColor3 = Color3.fromRGB(255,255,255)
@@ -23,7 +24,7 @@ menuButton.Parent = screenGui
 
 -- Menü frame
 local menuFrame = Instance.new("Frame")
-menuFrame.Size = UDim2.new(0,220,0,200)
+menuFrame.Size = UDim2.new(0,220,0,150)
 menuFrame.Position = UDim2.new(0.5, -110, 0, 120)
 menuFrame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 menuFrame.Visible = false
@@ -42,27 +43,16 @@ flyButton.Parent = menuFrame
 local speedBox = Instance.new("TextBox")
 speedBox.Size = UDim2.new(0,200,0,40)
 speedBox.Position = UDim2.new(0,10,0,60)
-speedBox.Text = ""
 speedBox.PlaceholderText = "WalkSpeed (0-500)"
 speedBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
 speedBox.TextColor3 = Color3.fromRGB(255,255,255)
 speedBox.ClearTextOnFocus = false
 speedBox.Parent = menuFrame
 
--- Jump butonu
-local jumpButton = Instance.new("TextButton")
-jumpButton.Size = UDim2.new(0,200,0,40)
-jumpButton.Position = UDim2.new(0,10,0,110)
-jumpButton.Text = "Jump +3m"
-jumpButton.BackgroundColor3 = Color3.fromRGB(70,70,70)
-jumpButton.TextColor3 = Color3.fromRGB(255,255,255)
-jumpButton.Parent = menuFrame
-
 -------------------------
--- Fonksiyonellik
+-- Değişkenler
 -------------------------
 local flying = false
-local holdingJump = false
 local flySpeed = 16
 
 -- Menü aç/kapa
@@ -73,6 +63,7 @@ end)
 -- Menü butonunu sürüklenebilir yap
 local dragging = false
 local dragInput, mousePos, framePos
+
 menuButton.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = true
@@ -106,7 +97,7 @@ flyButton.MouseButton1Click:Connect(function()
 	flyButton.Text = "Fly: " .. (flying and "ON" or "OFF")
 end)
 
--- WalkSpeed ayarı
+-- SpeedBox ayarı
 speedBox.FocusLost:Connect(function()
 	local val = tonumber(speedBox.Text)
 	if val then
@@ -118,62 +109,23 @@ speedBox.FocusLost:Connect(function()
 	end
 end)
 
--- Jump +3m tek sefer
-jumpButton.MouseButton1Click:Connect(function()
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if root then
-		root.CFrame = root.CFrame + Vector3.new(0,3,0)
-	end
-end)
-
--- Basılı tutunca sürekli zıplama (0.5 saniyede 3m)
-jumpButton.MouseButton1Down:Connect(function()
-	holdingJump = true
-	spawn(function()
-		while holdingJump do
-			local root = char:FindFirstChild("HumanoidRootPart")
-			if root then
-				root.CFrame = root.CFrame + Vector3.new(0,3,0)
-			end
-			wait(0.5)
-		end
-	end)
-end)
-
-jumpButton.MouseButton1Up:Connect(function()
-	holdingJump = false
-end)
-
--- Fly mekaniği (PC + mobil, hareket speedBox'a bağlı)
-local moveVector = Vector3.new(0,0,0)
-local keysDown = {}
-
-uis.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	keysDown[input.KeyCode.Name] = true
-end)
-
-uis.InputEnded:Connect(function(input)
-	keysDown[input.KeyCode.Name] = nil
-end)
-
+-- Fly hareketi (speedBox ile uyumlu)
 runService.RenderStepped:Connect(function()
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if flying and root then
-		-- Yön hareketleri
+	if flying then
 		local cam = workspace.CurrentCamera
-		local forward = cam.CFrame.LookVector
-		local right = cam.CFrame.RightVector
-		moveVector = Vector3.new(0,0,0)
-		if keysDown["W"] then moveVector = moveVector + forward end
-		if keysDown["S"] then moveVector = moveVector - forward end
-		if keysDown["A"] then moveVector = moveVector - right end
-		if keysDown["D"] then moveVector = moveVector + right end
-		moveVector = moveVector.Unit * flySpeed
-		if moveVector ~= moveVector then moveVector = Vector3.new(0,0,0) end -- NaN kontrol
+		local moveVector = Vector3.new(0,0,0)
 
-		-- Yükseklik sabit (havada kal)
-		local vel = moveVector + Vector3.new(0,5,0)
-		root.Velocity = vel
+		if uis:IsKeyDown(Enum.KeyCode.W) then moveVector = moveVector + cam.CFrame.LookVector end
+		if uis:IsKeyDown(Enum.KeyCode.S) then moveVector = moveVector - cam.CFrame.LookVector end
+		if uis:IsKeyDown(Enum.KeyCode.A) then moveVector = moveVector - cam.CFrame.RightVector end
+		if uis:IsKeyDown(Enum.KeyCode.D) then moveVector = moveVector + cam.CFrame.RightVector end
+
+		if moveVector.Magnitude > 0 then
+			moveVector = moveVector.Unit * flySpeed
+		end
+
+		-- Fly yukarıda sabit kalsın
+		root.Velocity = moveVector + Vector3.new(0, hum.JumpHeight, 0)
+		hum.WalkSpeed = flySpeed
 	end
 end)
