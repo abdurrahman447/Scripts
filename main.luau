@@ -2,18 +2,17 @@
 
 local screenGui = script.Parent
 local button = screenGui:WaitForChild("MainButton") -- sürüklenen buton
-local menu = screenGui:WaitForChild("MenuFrame")
-local flyButton = menu:WaitForChild("FlyButton")
-local speedBox = menu:WaitForChild("SpeedBox")
 
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
--- Menü başlangıçta kapalı
-menu.Visible = false
+-- Başlangıç ayarları
+local flying = false
+local bodyVel
+local speed = 50 -- hız buradan ayarlanabilir (0–500)
 
--- Sürüklenebilirlik ayarları
+-- Sürüklenebilirlik
 local UserInputService = game:GetService("UserInputService")
 local dragging, dragInput, dragStart, startPos
 
@@ -53,25 +52,17 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
--- Butona basınca menü aç/kapat
+-- Butona tıklayınca Fly aç/kapa
 button.MouseButton1Click:Connect(function()
-	menu.Visible = not menu.Visible
-end)
-
--- Fly sistemi
-local flying = false
-local bodyVel
-
-flyButton.MouseButton1Click:Connect(function()
 	flying = not flying
 	if flying then
-		flyButton.Text = "Fly: ON"
+		button.Text = "Fly: ON"
 		bodyVel = Instance.new("BodyVelocity")
 		bodyVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
 		bodyVel.Velocity = Vector3.zero
 		bodyVel.Parent = character:WaitForChild("HumanoidRootPart")
 	else
-		flyButton.Text = "Fly: OFF"
+		button.Text = "Fly: OFF"
 		if bodyVel then
 			bodyVel:Destroy()
 			bodyVel = nil
@@ -79,20 +70,10 @@ flyButton.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Speed ayarı
-speedBox.FocusLost:Connect(function()
-	local val = tonumber(speedBox.Text)
-	if val and val >= 0 and val <= 500 then
-		humanoid.WalkSpeed = val
-	else
-		speedBox.Text = tostring(humanoid.WalkSpeed)
-	end
-end)
-
--- Fly yön kontrolü
+-- Uçarken yön kontrolü
 game:GetService("RunService").Heartbeat:Connect(function()
 	if flying and bodyVel then
 		local moveDir = humanoid.MoveDirection
-		bodyVel.Velocity = moveDir * (humanoid.WalkSpeed + 20)
+		bodyVel.Velocity = moveDir * (speed + humanoid.WalkSpeed)
 	end
 end)
