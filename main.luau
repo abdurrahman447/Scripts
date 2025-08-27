@@ -1,18 +1,19 @@
--- GUI öğelerini tanımla
-local button = script.Parent -- sürüklenen buton
+-- LocalScript (ScreenGui içinde)
+
+local screenGui = script.Parent
+local button = screenGui:WaitForChild("MainButton") -- sürüklenen buton
+local menu = screenGui:WaitForChild("MenuFrame")
+local flyButton = menu:WaitForChild("FlyButton")
+local speedBox = menu:WaitForChild("SpeedBox")
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
--- Menü
-local menu = button.Parent:WaitForChild("MenuFrame") 
-menu.Visible = false 
+-- Menü başlangıçta kapalı
+menu.Visible = false
 
--- Fly butonu ve Speed kutusu
-local flyButton = menu:WaitForChild("FlyButton")
-local speedBox = menu:WaitForChild("SpeedBox")
-
--- Sürüklenebilirlik
+-- Sürüklenebilirlik ayarları
 local UserInputService = game:GetService("UserInputService")
 local dragging, dragInput, dragStart, startPos
 
@@ -25,7 +26,8 @@ local function update(input)
 end
 
 button.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 
+	or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 		dragStart = input.Position
 		startPos = button.Position
@@ -39,7 +41,8 @@ button.InputBegan:Connect(function(input)
 end)
 
 button.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType == Enum.UserInputType.MouseMovement 
+	or input.UserInputType == Enum.UserInputType.Touch then
 		dragInput = input
 	end
 end)
@@ -50,7 +53,7 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
--- Butona basınca menüyü aç/kapat
+-- Butona basınca menü aç/kapat
 button.MouseButton1Click:Connect(function()
 	menu.Visible = not menu.Visible
 end)
@@ -77,16 +80,16 @@ flyButton.MouseButton1Click:Connect(function()
 end)
 
 -- Speed ayarı
-speedBox.FocusLost:Connect(function(enterPressed)
+speedBox.FocusLost:Connect(function()
 	local val = tonumber(speedBox.Text)
 	if val and val >= 0 and val <= 500 then
 		humanoid.WalkSpeed = val
 	else
-		speedBox.Text = tostring(humanoid.WalkSpeed) -- geçerli hız göster
+		speedBox.Text = tostring(humanoid.WalkSpeed)
 	end
 end)
 
--- Eğer uçma açıkken hareket tuşlarına basılırsa uçma yönü
+-- Fly yön kontrolü
 game:GetService("RunService").Heartbeat:Connect(function()
 	if flying and bodyVel then
 		local moveDir = humanoid.MoveDirection
