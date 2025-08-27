@@ -1,13 +1,13 @@
--- Kodu Button objesinin icine koyun
+-- Kodu ScreenGui icine koyun
 local Player = game.Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local mouse = Player:GetMouse()
 
 -- GUI objelerine erisim.
--- Artık button.Parent'i doğru şekilde bulacak ve oradan diger objelere erisecek.
-local screenGui = script.Parent.Parent
-local button = script.Parent
+-- Artık betik ScreenGui'nin icinde oldugu icin dogrudan onun altindaki nesnelere erisebilecek.
+local screenGui = script.Parent
+local button = screenGui:WaitForChild("Button")
 local menu = screenGui:WaitForChild("Menu")
 local flyButton = menu:WaitForChild("FlyButton")
 local speedInput = menu:WaitForChild("SpeedInput")
