@@ -1,98 +1,95 @@
--- Kodu ScreenGui icine koyun
-local Player = game.Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local mouse = Player:GetMouse()
+-- GUI öğelerini tanımla
+local button = script.Parent -- sürüklenen buton
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
--- GUI objelerine erisim.
--- Artık betik ScreenGui'nin icinde oldugu icin dogrudan onun altindaki nesnelere erisebilecek.
-local screenGui = script.Parent
-local button = screenGui:WaitForChild("Button")
-local menu = screenGui:WaitForChild("Menu")
+-- Menü
+local menu = button.Parent:WaitForChild("MenuFrame") 
+menu.Visible = false 
+
+-- Fly butonu ve Speed kutusu
 local flyButton = menu:WaitForChild("FlyButton")
-local speedInput = menu:WaitForChild("SpeedInput")
+local speedBox = menu:WaitForChild("SpeedBox")
 
--- Butonun gorsel ozellikleri
-button.Text = "Menu"
-button.Size = UDim2.new(0, 100, 0, 100)
-button.Position = UDim2.new(0.5, -50, 0.5, -50)
-button.BackgroundColor3 = Color3.new(0, 0.5, 1)
+-- Sürüklenebilirlik
+local UserInputService = game:GetService("UserInputService")
+local dragging, dragInput, dragStart, startPos
 
--- Menu gorsel ozellikleri
-menu.Size = UDim2.new(0, 250, 0, 200)
-menu.Position = UDim2.new(0.5, -125, 0.5, -100)
-menu.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-menu.Visible = false
+local function update(input)
+	local delta = input.Position - dragStart
+	button.Position = UDim2.new(
+		startPos.X.Scale, startPos.X.Offset + delta.X,
+		startPos.Y.Scale, startPos.Y.Offset + delta.Y
+	)
+end
 
--- FlyButton gorsel ozellikleri
-flyButton.Text = "Uçma"
-flyButton.Size = UDim2.new(0, 150, 0, 50)
-flyButton.Position = UDim2.new(0.5, -75, 0.2, 0)
-flyButton.BackgroundColor3 = Color3.new(0, 0.8, 0.2)
-
--- SpeedInput gorsel ozellikleri
-speedInput.PlaceholderText = "0-500"
-speedInput.Size = UDim2.new(0, 100, 0, 40)
-speedInput.Position = UDim2.new(0.5, -50, 0.7, 0)
-
----
-
--- Buton hareketini kontrol etme
-local dragging = false
 button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-    end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = button.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
 end)
 
-button.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
+button.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
 end)
 
-game:GetService("RunService").RenderStepped:Connect(function()
-    if dragging then
-        button.Position = UDim2.new(0, mouse.X - button.AbsoluteSize.X / 2, 0, mouse.Y - button.AbsoluteSize.Y / 2)
-    end
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		update(input)
+	end
 end)
 
--- Menuyu acma/kapama
-local isMenuVisible = false
+-- Butona basınca menüyü aç/kapat
 button.MouseButton1Click:Connect(function()
-    isMenuVisible = not isMenuVisible
-    menu.Visible = isMenuVisible
+	menu.Visible = not menu.Visible
 end)
 
----
-
--- Ucus ve hiz ayarlari
-local isFlying = false
-local defaultWalkSpeed = Humanoid.WalkSpeed
+-- Fly sistemi
+local flying = false
+local bodyVel
 
 flyButton.MouseButton1Click:Connect(function()
-    isFlying = not isFlying
-    if isFlying then
-        Humanoid.Sit = true
-        Humanoid.PlatformStand = true
-        Humanoid.WalkSpeed = 0
-        flyButton.Text = "İniş"
-    else
-        Humanoid.Sit = false
-        Humanoid.PlatformStand = false
-        Humanoid.WalkSpeed = defaultWalkSpeed
-        flyButton.Text = "Uçma"
-    end
+	flying = not flying
+	if flying then
+		flyButton.Text = "Fly: ON"
+		bodyVel = Instance.new("BodyVelocity")
+		bodyVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+		bodyVel.Velocity = Vector3.zero
+		bodyVel.Parent = character:WaitForChild("HumanoidRootPart")
+	else
+		flyButton.Text = "Fly: OFF"
+		if bodyVel then
+			bodyVel:Destroy()
+			bodyVel = nil
+		end
+	end
 end)
 
--- Hiz ayari
-speedInput.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local newSpeed = tonumber(speedInput.Text)
-        if newSpeed and newSpeed >= 0 and newSpeed <= 500 then
-            Humanoid.WalkSpeed = newSpeed
-        else
-            print("Gecersiz hiz degeri. Lutfen 0 ile 500 arasinda bir sayi girin.")
-        end
-    end
+-- Speed ayarı
+speedBox.FocusLost:Connect(function(enterPressed)
+	local val = tonumber(speedBox.Text)
+	if val and val >= 0 and val <= 500 then
+		humanoid.WalkSpeed = val
+	else
+		speedBox.Text = tostring(humanoid.WalkSpeed) -- geçerli hız göster
+	end
+end)
+
+-- Eğer uçma açıkken hareket tuşlarına basılırsa uçma yönü
+game:GetService("RunService").Heartbeat:Connect(function()
+	if flying and bodyVel then
+		local moveDir = humanoid.MoveDirection
+		bodyVel.Velocity = moveDir * (humanoid.WalkSpeed + 20)
+	end
 end)
