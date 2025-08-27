@@ -4,9 +4,11 @@ local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local mouse = Player:GetMouse()
 
--- GUI objelerine erisim
+-- GUI objelerine erisim.
+-- Artık button.Parent'i doğru şekilde bulacak ve oradan diger objelere erisecek.
+local screenGui = script.Parent.Parent
 local button = script.Parent
-local menu = button.Parent:WaitForChild("Menu")
+local menu = screenGui:WaitForChild("Menu")
 local flyButton = menu:WaitForChild("FlyButton")
 local speedInput = menu:WaitForChild("SpeedInput")
 
