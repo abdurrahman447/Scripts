@@ -1,19 +1,41 @@
--- Roblox'da yerel bir betik (LocalScript)
+-- Kodu Button objesinin icine koyun
 local Player = game.Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
+local mouse = Player:GetMouse()
 
--- Buton ve menü GUI'lerini tanımla
-local button = script.Parent.Parent:WaitForChild("Button")
-local menu = script.Parent.Parent:WaitForChild("Menu")
-
+-- GUI objelerine erisim
+local button = script.Parent
+local menu = button.Parent:WaitForChild("Menu")
 local flyButton = menu:WaitForChild("FlyButton")
 local speedInput = menu:WaitForChild("SpeedInput")
 
--- Menüyü başlangıçta gizle
+-- Butonun gorsel ozellikleri
+button.Text = "Menu"
+button.Size = UDim2.new(0, 100, 0, 100)
+button.Position = UDim2.new(0.5, -50, 0.5, -50)
+button.BackgroundColor3 = Color3.new(0, 0.5, 1)
+
+-- Menu gorsel ozellikleri
+menu.Size = UDim2.new(0, 250, 0, 200)
+menu.Position = UDim2.new(0.5, -125, 0.5, -100)
+menu.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 menu.Visible = false
 
--- Buton hareketini kontrol et
+-- FlyButton gorsel ozellikleri
+flyButton.Text = "Uçma"
+flyButton.Size = UDim2.new(0, 150, 0, 50)
+flyButton.Position = UDim2.new(0.5, -75, 0.2, 0)
+flyButton.BackgroundColor3 = Color3.new(0, 0.8, 0.2)
+
+-- SpeedInput gorsel ozellikleri
+speedInput.PlaceholderText = "0-500"
+speedInput.Size = UDim2.new(0, 100, 0, 40)
+speedInput.Position = UDim2.new(0.5, -50, 0.7, 0)
+
+---
+
+-- Buton hareketini kontrol etme
 local dragging = false
 button.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -29,41 +51,46 @@ end)
 
 game:GetService("RunService").RenderStepped:Connect(function()
     if dragging then
-        local mouse = Player:GetMouse()
         button.Position = UDim2.new(0, mouse.X - button.AbsoluteSize.X / 2, 0, mouse.Y - button.AbsoluteSize.Y / 2)
     end
 end)
 
--- Menüyü açma/kapama
+-- Menuyu acma/kapama
+local isMenuVisible = false
 button.MouseButton1Click:Connect(function()
-    menu.Visible = not menu.Visible
+    isMenuVisible = not isMenuVisible
+    menu.Visible = isMenuVisible
 end)
 
--- Uçma işlevi
+---
+
+-- Ucus ve hiz ayarlari
 local isFlying = false
 local defaultWalkSpeed = Humanoid.WalkSpeed
 
 flyButton.MouseButton1Click:Connect(function()
     isFlying = not isFlying
     if isFlying then
-        Humanoid.Sit = true -- Karakteri oturtarak yerçekimini devre dışı bırak
+        Humanoid.Sit = true
         Humanoid.PlatformStand = true
-        Humanoid.WalkSpeed = 0 -- Yürüme hızını sıfırla
+        Humanoid.WalkSpeed = 0
         flyButton.Text = "İniş"
     else
         Humanoid.Sit = false
         Humanoid.PlatformStand = false
-        Humanoid.WalkSpeed = defaultWalkSpeed -- Varsayılan hıza dön
+        Humanoid.WalkSpeed = defaultWalkSpeed
         flyButton.Text = "Uçma"
     end
 end)
 
--- Hız ayarı
+-- Hiz ayari
 speedInput.FocusLost:Connect(function(enterPressed)
     if enterPressed then
         local newSpeed = tonumber(speedInput.Text)
-        if newSpeed and newSpeed >= 0 and newSpeed <= 500 and isFlying then
+        if newSpeed and newSpeed >= 0 and newSpeed <= 500 then
             Humanoid.WalkSpeed = newSpeed
+        else
+            print("Gecersiz hiz degeri. Lutfen 0 ile 500 arasinda bir sayi girin.")
         end
     end
 end)
