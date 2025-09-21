@@ -8,6 +8,7 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
 -- GUI oluşturma
 local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- Modern Açma butonu
@@ -20,10 +21,12 @@ OpenButton.Font = Enum.Font.GothamBold
 OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 OpenButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
 OpenButton.AutoButtonColor = true
-OpenButton.Parent = ScreenGui
 OpenButton.BorderSizePixel = 0
-OpenButton.UICorner = Instance.new("UICorner", OpenButton)
-OpenButton.UICorner.CornerRadius = UDim.new(0, 10)
+OpenButton.Parent = ScreenGui
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(0, 10)
+OpenCorner.Parent = OpenButton
 
 -- Menü Frame
 local MenuFrame = Instance.new("Frame")
@@ -34,8 +37,10 @@ MenuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 MenuFrame.BackgroundTransparency = 0.1
 MenuFrame.BorderSizePixel = 0
 MenuFrame.Parent = ScreenGui
-local corner = Instance.new("UICorner", MenuFrame)
-corner.CornerRadius = UDim.new(0, 12)
+
+local MenuCorner = Instance.new("UICorner")
+MenuCorner.CornerRadius = UDim.new(0, 12)
+MenuCorner.Parent = MenuFrame
 
 -- Başlık
 local Title = Instance.new("TextLabel")
@@ -57,10 +62,12 @@ CloseButton.TextScaled = true
 CloseButton.Font = Enum.Font.Gotham
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseButton.Parent = MenuFrame
 CloseButton.BorderSizePixel = 0
-local closeCorner = Instance.new("UICorner", CloseButton)
-closeCorner.CornerRadius = UDim.new(0, 8)
+CloseButton.Parent = MenuFrame
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
 
 -- Teleport butonu
 local TeleportButton = Instance.new("TextButton")
@@ -71,10 +78,12 @@ TeleportButton.TextScaled = true
 TeleportButton.Font = Enum.Font.GothamBold
 TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeleportButton.BackgroundColor3 = Color3.fromRGB(0, 170, 90)
-TeleportButton.Parent = MenuFrame
 TeleportButton.BorderSizePixel = 0
-local tpCorner = Instance.new("UICorner", TeleportButton)
-tpCorner.CornerRadius = UDim.new(0, 10)
+TeleportButton.Parent = MenuFrame
+
+local TpCorner = Instance.new("UICorner")
+TpCorner.CornerRadius = UDim.new(0, 10)
+TpCorner.Parent = TeleportButton
 
 -- Açma butonuna tıklayınca menüyü aç
 OpenButton.MouseButton1Click:Connect(function()
